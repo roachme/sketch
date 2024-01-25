@@ -1,6 +1,6 @@
 
 print("hello")
-local ret = 1
-assert(ret == 1, "error: %d", 23)
+local ret = 3
+assert(ret == 3, "error: %d", 23)
 
 print("hello second")

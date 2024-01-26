@@ -5,3 +5,5 @@ assert(ret == 3, "error: %d", 23)
 -- and yet another one and this too
 -- hello there
 print(("hello %d"):format(23))
+print(("hello %d"):format(23))
+

@@ -1,4 +1,6 @@
-oeu:
-	oeuoeuc
+
+run:
+	lua sketch.lua
+
 
 

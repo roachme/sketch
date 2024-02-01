@@ -1,6 +1,6 @@
 
 run:
-	lua sketch.lua
+	lua taskman.lua
 
 
 

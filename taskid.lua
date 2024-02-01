@@ -1,4 +1,7 @@
-local taskpath = "/home/roach/work/sketch/lua/sketch/"
+--- Operate on task units in database.
+-- Like add, delete, list units and so on.
+-- @module TaskID
+
 
 local TaskID = {}
 TaskID.__index = TaskID
@@ -6,6 +9,7 @@ TaskID.__index = TaskID
 
 --[[ TODO
     1. Make a function to create files for current and previous taskid's
+    2. Set and update vars curr and prev not to calculate 'em all over again.
 ]]
 
 
@@ -17,13 +21,12 @@ TaskID.__index = TaskID
 function TaskID.new(gtaskpath)
     local self = setmetatable({
         taskpath = gtaskpath,
-        meta = gtaskpath .. "/.tasks",
-        --- roachme: seems like we don't use these two
-        fcurr = gtaskpath .. "/.curr",
-        fprev = gtaskpath .. "/.prev",
+        meta  = gtaskpath .. "/.tasks",
         curr  = nil,
         prev  = nil,
     }, TaskID)
+    self:getcurr()
+    self:getprev()
     return self
 end
 
@@ -31,22 +34,22 @@ end
 -- @param val `curr` or `prev` for current or previous task id
 -- @return task ID or nil if task doesn't exist
 function TaskID:_gettaskid(type)
-    local fname = taskpath .. "/." .. type
+    local fname = self.taskpath .. "/." .. type
     local f = io.open(fname)
     if not f then
         print("error: could not open file", fname)
         return
     end
-    local curr = f:read("*l")
+    local id = f:read("*l")
     f:close()
-    return curr
+    return id
 end
 
 --- Set task ID (private).
 -- @param taskid task ID to set
 -- @param val `curr` or `prev` for current or previous task id
 function TaskID:_settaskid(taskid, type)
-    local fname = taskpath .. "/." .. type
+    local fname = self.taskpath .. "/." .. type
     local f = io.open(fname, "w")
     if not f then
         print("error: could not open file", fname)
@@ -58,7 +61,7 @@ end
 
 --- Unset current task ID.
 function TaskID:unsetcurr()
-    local fname = taskpath .. "/.curr"
+    local fname = self.taskpath .. "/.curr"
     local f = io.open(fname, "w")
     if not f then
         return
@@ -68,7 +71,7 @@ end
 
 --- Unset previous task ID.
 function TaskID:unsetprev()
-    local fname = taskpath .. "/.prev"
+    local fname = self.taskpath .. "/.prev"
     local f = io.open(fname, "w")
     if not f then
         return
@@ -79,25 +82,29 @@ end
 --- Get current task ID.
 -- @return current task ID.
 function TaskID:getcurr()
-    return self:_gettaskid("curr")
+    self.curr = self:_gettaskid("curr")
+    return self.curr
 end
 
 --- Get previous task ID.
 -- @returtn previous task ID.
 function TaskID:getprev()
-    return self:_gettaskid("prev")
+    self.prev = self:_gettaskid("prev")
+    return self.prev
 end
 
 --- Set current task ID.
 -- @param task ID
 function TaskID:setcurr(taskid)
     self:_settaskid(taskid, "curr")
+    self.curr = taskid
 end
 
 --- Set previous task ID.
 -- @param task ID
 function TaskID:setprev(taskid)
     self:_settaskid(taskid, "prev")
+    self.prev = taskid
 end
 
 --- Check that task ID exist in database.
@@ -121,16 +128,18 @@ function TaskID:check(taskid)
 end
 
 --- Add a new task ID.
+-- @param taskid task ID to add to database
+-- @treturn bool true if task ID was adde, otherwise false
 function TaskID:add(taskid)
     local curr = self:getcurr()
     local f = io.open(self.meta, "a+")
     if self:check(taskid) then
         print(("warning: task '%s' already exists"):format(taskid))
-        return
+        return false
     end
     if not f then
         print("error: could not open meta file")
-        return
+        return false
     end
     f:write(taskid, "\n")
     f:close()
@@ -174,7 +183,23 @@ function TaskID:del(taskid)
     self:unsetcurr()
 end
 
+--- List all task IDs from the database.
+-- @param fn callback function
+function TaskID:list(fn)
+    local f = io.open(self.meta)
+    if not f then
+        print("error: could not open meta file")
+        return
+    end
+    for id in f:lines() do
+        if self.curr == id then
+            local fmt = "* %-8s %s"
+            print(fmt:format(id, fn()))
+        else
+            local fmt = "  %-8s %s"
+            print(fmt:format(id, fn()))
+        end
+    end
+end
 
-local taskid = TaskID.new(taskpath)
-taskid:del("DE-101")
-
+return TaskID

@@ -103,10 +103,10 @@ function TaskMan:move(status, id)
         os.exit(1)
     end
     if id and id == self.taskid.curr then
-        log("task '%s' is already in use", id)
-        os.exit(1)
+        id = nil
+    end
 
-    elseif (id and self.taskid.curr) and status == "progress" then
+    if (id and self.taskid.curr) and status == "progress" then
         print("replace new task with current one (in progress)")
         local gitobj = git.new(id, self.taskunit:getunit(id, "branch"))
         if not gitobj:branch_switch() then
@@ -124,7 +124,6 @@ function TaskMan:move(status, id)
             log("repo has uncommited changes")
             os.exit(1)
         end
-        print("set new current task ID")
         self.taskunit:setunit(id, "Status", status)
         self.taskid:setcurr(id)
 

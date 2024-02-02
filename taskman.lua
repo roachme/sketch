@@ -151,6 +151,10 @@ end
 
 --- Switch to previous task.
 function TaskMan:prev()
+    self:move("progress", self.taskid.prev)
+    local prev = self.taskid.prev
+    self.taskid:setprev(self.taskid.curr)
+    self.taskid:setcurr(prev)
 end
 
 --- List all task IDs.

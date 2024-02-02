@@ -224,6 +224,12 @@ function TaskID:setcurr(taskid)
     return taskid_pr:setcurr(taskid)
 end
 
+--- Set previous task ID.
+-- @param taskid task ID
+function TaskID:setprev(taskid)
+    return taskid_pr:setprev(taskid)
+end
+
 --- Clear current task ID.
 function TaskID:unsetcurr()
     return taskid_pr:unsetcurr()

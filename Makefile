@@ -1,11 +1,9 @@
-taskunit:
-	lua taskunit.lua
+test:
+	lua taskid.lua
 
 git:
 	lua git.lua
 
-test:
-	lua taskid.lua
 run:
 	lua taskman.lua
 

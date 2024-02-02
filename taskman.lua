@@ -60,6 +60,7 @@ end
 
 --- Create a new task unit.
 -- @param id task ID
+-- @treturn true if new task unit is created, otherwise false
 function TaskMan:new(id)
     if not id then
         print("tman: missing task ID")
@@ -74,6 +75,7 @@ function TaskMan:new(id)
         self.taskid:del(id)
         os.exit(1)
     end
+    return true
 end
 
 --- Switch to new task.
@@ -84,13 +86,10 @@ function TaskMan:use(id)
         os.exit(1)
     end
     if not self.taskid:exist(id) then
-        log("task ID '%s' does't exist", id)
+        log("task ID '%s' doesn't exist", id)
         os.exit(1)
     end
     self:move("progress", id)
-    -- roachme: check this no current task,
-    -- if so then check if we can move to backlog
-    -- i.e. check it has no uncommited changes
 end
 
 --- Move task to new status.
@@ -167,11 +166,11 @@ function TaskMan:show(id)
     -- roachme: taskunit should check that id exists
     id = id or self.taskid.curr
     if not id then
-        print("tman: neither task ID passed nor current exists")
+        log("neither task ID passed nor current exists")
         os.exit(1)
     end
     if not self.taskid:exist(id) then
-        log("no such task ID '%s'", id)
+        log("'%s': no such task ID", id)
         os.exit(1)
     end
     self.taskunit:show(id)
@@ -186,7 +185,7 @@ end
 -- @param id task ID
 function TaskMan:del(id)
     if not self.taskid:exist(id) then
-        log("taskid '%s' does not exist", id)
+        log("'%s': no such task ID", id)
         os.exit(1)
     end
     self.taskunit:del(id)

@@ -16,12 +16,6 @@ TaskIDPrivate.__index = TaskIDPrivate
 ]]
 
 
---[[
-Notes:
-    To simplify upper layers life this module check everything itself.
-]]
-
-
 local function log(fmt, ...)
     local msg = "taskid: " .. fmt:format(...)
     print(msg)
@@ -50,49 +44,16 @@ end
 -- @param val `curr` or `prev` for current or previous task id
 -- @return task ID or nil if task doesn't exist
 function TaskIDPrivate:_gettaskid(type)
+    local id = nil
     local fname = self.taskpath .. "/." .. type
     local f = io.open(fname)
     if not f then
         log("could not open file", fname)
-        return
+        return nil
     end
-    local id = f:read("*l")
+    id = f:read("*l")
     f:close()
     return id
-end
-
---- Set task ID (private).
--- @param taskid task ID to set
--- @param val `curr` or `prev` for current or previous task id
-function TaskIDPrivate:_settaskid(taskid, type)
-    local fname = self.taskpath .. "/." .. type
-    local f = io.open(fname, "w")
-    if not f then
-        log("could not open file", fname)
-        return
-    end
-    f:write(taskid, "\n")
-    f:close()
-end
-
---- Unset current task ID (private).
-function TaskIDPrivate:unsetcurr()
-    local fname = self.taskpath .. "/.curr"
-    local f = io.open(fname, "w")
-    if not f then
-        return
-    end
-    f:close()
-end
-
---- Unset previous task ID (private).
-function TaskIDPrivate:unsetprev()
-    local fname = self.taskpath .. "/.prev"
-    local f = io.open(fname, "w")
-    if not f then
-        return
-    end
-    f:close()
 end
 
 --- Get current task ID (private).
@@ -107,18 +68,22 @@ function TaskIDPrivate:getprev()
     return self:_gettaskid("prev")
 end
 
---- Set current task ID (private).
--- @param task ID
-function TaskIDPrivate:setcurr(taskid)
-    self:_settaskid(taskid, "curr")
-    self.curr = taskid
-end
-
---- Set previous task ID (private).
--- @param task ID
-function TaskIDPrivate:setprev(taskid)
-    self:_settaskid(taskid, "prev")
-    self.prev = taskid
+--- Set task ID (private).
+-- @param taskid task ID to set
+-- @param val `curr` or `prev` for current or previous task id
+-- @treturn bool true if task id was set, otherwise false
+function TaskIDPrivate:_settaskid(id, type)
+    local fname = self.taskpath .. "/." .. type
+    local f = io.open(fname, "w")
+    if not f then
+        log("could not open file", fname)
+        return false
+    end
+    if id then
+        f:write(id, "\n")
+    end
+    f:close()
+    return true
 end
 
 
@@ -153,10 +118,10 @@ function TaskID:add(taskid)
     f:write(taskid, "\n")
     f:close()
 
-    taskid_pr:setcurr(taskid)
+    self:setcurr(taskid)
     self.curr = taskid_pr:getcurr()
     if self.curr then
-        taskid_pr:setprev(self.curr)
+        self:setprev(self.curr)
     end
     return true
 end
@@ -211,28 +176,46 @@ function TaskID:del(taskid)
         f:write(line, "\n")
     end
     f:close()
-
-    -- remove current task ID from file
-    taskid_pr:unsetcurr()
-    self.curr = taskid_pr:getcurr()
+    self:unsetcurr()
     return true
 end
 
 --- Set current task ID.
--- @param taskid task ID
-function TaskID:setcurr(taskid)
-    return taskid_pr:setcurr(taskid)
+-- @param id task ID
+-- @treturn bool true if current task is set, otherwise false
+function TaskID:setcurr(id)
+    if not self:exist(id) then
+        log("can't set current task ID '%s' (doesn't exist in database)", id)
+        return false
+    end
+    taskid_pr.curr = id
+    return taskid_pr:_settaskid(id, "/.curr")
 end
 
 --- Set previous task ID.
--- @param taskid task ID
-function TaskID:setprev(taskid)
-    return taskid_pr:setprev(taskid)
+-- @param id task ID
+-- @treturn bool true if previous task is set, otherwise false
+function TaskID:setprev(id)
+    if not self:exist(id) then
+        log("can't set previous task ID '%s' (doesn't exist in database)", id)
+        return false
+    end
+    taskid_pr.prev = id
+    return taskid_pr:_settaskid(id, "/.prev")
 end
 
 --- Clear current task ID.
+-- @treturn bool true if current task is unset, otherwise false
 function TaskID:unsetcurr()
-    return taskid_pr:unsetcurr()
+    taskid_pr.curr = nil
+    return taskid_pr:_settaskid(nil, "/.curr")
+end
+
+--- Clear current task ID.
+-- @treturn bool true if previous task is unset, otherwise false
+function TaskID:unsetprev()
+    taskid_pr.prev = nil
+    return taskid_pr:_settaskid(nil, "/.prev")
 end
 
 --- List all task IDs from the database.

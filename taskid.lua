@@ -121,26 +121,6 @@ function TaskIDPrivate:setprev(taskid)
     self.prev = taskid
 end
 
---- Check that task ID exist in database (private).
--- @param taskid task ID to look up
--- @treturn bool true if task ID exist, otherwise false
-function TaskIDPrivate:check(taskid)
-    local res = false
-    local f = io.open(self.meta, "r")
-    if not f then
-        log("could not open meta file")
-        return
-    end
-    for line in f:lines() do
-        if line == taskid then
-            res = true
-            break
-        end
-    end
-    f:close()
-    return res
-end
-
 
 --- Class TaskID
 -- type TaskID
@@ -162,7 +142,7 @@ end
 -- @treturn bool true if task ID was adde, otherwise false
 function TaskID:add(taskid)
     local f = io.open(taskid_pr.meta, "a+")
-    if taskid_pr:check(taskid) then
+    if self:exist(taskid) then
         log(("task '%s' already exists"):format(taskid))
         return false
     end
@@ -181,12 +161,32 @@ function TaskID:add(taskid)
     return true
 end
 
+--- Check that task ID exist in database (private).
+-- @param taskid task ID to look up
+-- @treturn bool true if task ID exist, otherwise false
+function TaskID:exist(taskid)
+    local res = false
+    local f = io.open(taskid_pr.meta, "r")
+    if not f then
+        log("could not open meta file")
+        return
+    end
+    for line in f:lines() do
+        if line == taskid then
+            res = true
+            break
+        end
+    end
+    f:close()
+    return res
+end
+
 --- Delete a task ID.
--- @treturn bool true if adding new task ID was successful, otherwise false
+-- @treturn bool true if deleting task ID was successful, otherwise false
 function TaskID:del(taskid)
     local f = io.open(taskid_pr.meta, "r")
     local lines = {}
-    if not taskid_pr:check(taskid) then
+    if not self:exist(taskid) then
         log("task '%s' doesn't exist", taskid)
         return false
     end
@@ -236,11 +236,5 @@ function TaskID:list(fn)
     end
     f:close()
 end
-
---[[
-local taskid = TaskID.new()
-taskid:del("DE-me4")
-taskid:list(function() return "" end)
-]]
 
 return TaskID

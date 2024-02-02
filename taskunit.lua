@@ -3,11 +3,17 @@
 -- @module TaskUnit
 
 local posix = require("posix")
+local git = require("git")
 
 
 local TaskUnit = {}
 TaskUnit.__index = TaskUnit
 
+
+local function log(fmt, ...)
+    local msg = "taskunit: " .. fmt:format(...)
+    print(msg)
+end
 
 local function get_input(promtp)
     io.write(promtp, ": ")
@@ -42,7 +48,7 @@ end
 --- Init class TaskUnit.
 function TaskUnit.newobj(gtaskpath)
     local self = setmetatable({
-        taskpath = gtaskpath
+        taskpath = gtaskpath,
     }, TaskUnit)
     return self
 end
@@ -79,10 +85,9 @@ function TaskUnit:new(id)
         return false
     end
 
-    -- roachme: git: create branches in repos
-
     -- Save task info
     posix.mkdir(taskdir)
+    --- roachme: git: create symlinks to repos
     file = io.open(fname, "w")
     if not file then
         print("taskunit: error: could not create file note", fname)
@@ -92,7 +97,31 @@ function TaskUnit:new(id)
         file:write(("%s: %s\n"):format(item.inptext, item.value))
     end
     file:close()
+
+    --- create task branches in repos
+    git = git.new(unit.id.value, unit.branch.value)
+    git:repolink()
+    git:branch_create()
     return true
+end
+
+--- Get unit from task metadata.
+-- @param id task ID
+-- @param unit unit key we need value of
+function TaskUnit:getunit(id, unit)
+    local res = nil
+    local fname = self.taskpath .. "/" .. id .. "/.note"
+    local f = io.open(fname)
+    if not f then
+        log("could not open task unit file")
+        return nil
+    end
+    for line in f:lines() do
+        if string.match(line, "(%w+)"):lower() == unit then
+            res = string.match(line, "%w+%s*:%s+(.*)")
+        end
+    end
+    return res
 end
 
 --- Update task status.
@@ -125,7 +154,10 @@ end
 --- Delete task unit.
 -- @param id task ID
 function TaskUnit:del(id)
-    return os.execute("rm -rf " .. self.taskpath .. "/" .. id)
+    git = git.new(id, self:getunit(id, "branch"))
+    git:branch_delete()
+    os.execute("rm -rf " .. self.taskpath .. "/" .. id)
+    return true
 end
 
 return TaskUnit

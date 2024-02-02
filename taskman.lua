@@ -70,7 +70,7 @@ function TaskMan:new(id)
     end
     if not self.taskunit:new(id) then
         print("taskman: colud not create new task unit")
-        self.taskid.del(id)
+        self.taskid:del(id)
         os.exit(1)
     end
 end
@@ -108,6 +108,10 @@ function TaskMan:show(id)
         print("tman: neither task ID passed nor current exists")
         os.exit(1)
     end
+    if not self.taskid:exist(id) then
+        log("no such task ID '%s'", id)
+        os.exit(1)
+    end
     self.taskunit:show(id)
 end
 
@@ -119,7 +123,10 @@ end
 --- Delete task unit.
 -- @param id task ID
 function TaskMan:del(id)
-    -- roachme: git: delete git branches in repos
+    if not self.taskid:exist(id) then
+        log("taskid '%s' does not exist", id)
+        os.exit(1)
+    end
     self.taskunit:del(id)
     self.taskid:del(id)
 end

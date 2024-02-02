@@ -6,6 +6,10 @@
 local taskid    = require("taskid")
 local taskunit  = require("taskunit")
 
+local function log(fmt, ...)
+    local msg = "tman: " .. fmt:format(...)
+    print(msg)
+end
 
 local TaskMan = {}
 TaskMan.__index = TaskMan
@@ -21,12 +25,13 @@ Task items related commands:
   list  - list all tasks
   show  - show task info. Default: current task (if exists)
   amend - amend task description and branch
+  review- push commits for review
+  done  - move task unit to .done directory
 
 Task specificly related commands:
   check - check git commit, rebase/ merge, CHANGELOG.md and pass task code through tests in MakefileWimark
   time  - time you spent on task
   dline - show updated deadline
-  done  - git push task code
 
 General:
   help  - show this message
@@ -55,18 +60,31 @@ end
 --- Create a new task unit.
 -- @param id task ID
 function TaskMan:new(id)
-    if self.taskid:check(id) then
-        print(("taskman: such task ID already exits: '%s'"):format(id))
+    if not id then
+        print("tman: missing task ID")
+        os.exit(1)
+    end
+    if not self.taskid:add(id) then
+        log("task ID '%s' exists already", id)
         os.exit(1)
     end
     if not self.taskunit:new(id) then
         print("taskman: colud not create new task unit")
+        self.taskid.del(id)
         os.exit(1)
     end
-    self.taskid:add(id)
 end
 
-function TaskMan:use()
+--- Switch to new task.
+-- @param id task ID
+function TaskMan:use(id)
+    if not id then
+        print("tman: missing task ID")
+        os.exit(1)
+    end
+    -- roachme: check this no current task,
+    -- if so then check if we can move to backlog
+    -- i.e. check it has no uncommited changes
 end
 
 function TaskMan:move()
@@ -84,8 +102,10 @@ end
 --- Show task unit metadata.
 -- @param id task ID
 function TaskMan:show(id)
-    if not self.taskid:check(id) then
-        print(("taskman: no such task ID: '%s'"):format(id))
+    -- roachme: taskunit should check that id exists
+    id = id or self.taskid.curr
+    if not id then
+        print("tman: neither task ID passed nor current exists")
         os.exit(1)
     end
     self.taskunit:show(id)
@@ -135,15 +155,6 @@ function TaskMan:main(arg)
 end
 
 local tman = TaskMan.init()
---tman:main(arg)
-
-
-
-local function get_input(promtp)
-    -- TODO: trim trailing newlines and whitespaces
-    io.write(promtp, ": ")
-    return io.read("*line")
-end
-
+tman:main(arg)
 
 return TaskMan

@@ -1,10 +1,13 @@
 --- Operate on task units in database.
--- Like add, delete, list units and so on.
+-- Like add, delete, list task IDs and so on.
 -- @module TaskID
 
 
 local TaskID = {}
 TaskID.__index = TaskID
+
+local TaskIDPrivate = {}
+TaskIDPrivate.__index = TaskIDPrivate
 
 
 --[[ TODO
@@ -13,31 +16,44 @@ TaskID.__index = TaskID
 ]]
 
 
---- Class TaskID
--- type TaskID
+--[[
+Notes:
+    To simplify upper layers life this module check everything itself.
+]]
 
---- Init class TaskID.
+
+local function log(fmt, ...)
+    local msg = "taskid: " .. fmt:format(...)
+    print(msg)
+end
+
+
+--- Class TaskIDPrivate
+-- type TaskIDPrivate
+
+
+--- Init class TaskIDPrivate.
 -- @param gtaskpath path where tasks are located
-function TaskID.new(gtaskpath)
+function TaskIDPrivate.new()
     local self = setmetatable({
-        taskpath = gtaskpath,
-        meta  = gtaskpath .. "/.tasks",
+        taskpath = "/home/roach/work/tasks",
+        meta  = "/home/roach/work/tasks" .. "/.tasks",
         curr  = nil,
         prev  = nil,
-    }, TaskID)
-    self:getcurr()
-    self:getprev()
+    }, TaskIDPrivate)
+    self.curr = self:getcurr()
+    self.prev = self:getprev()
     return self
 end
 
 --- Get task ID (private).
 -- @param val `curr` or `prev` for current or previous task id
 -- @return task ID or nil if task doesn't exist
-function TaskID:_gettaskid(type)
+function TaskIDPrivate:_gettaskid(type)
     local fname = self.taskpath .. "/." .. type
     local f = io.open(fname)
     if not f then
-        print("error: could not open file", fname)
+        log("could not open file", fname)
         return
     end
     local id = f:read("*l")
@@ -48,19 +64,19 @@ end
 --- Set task ID (private).
 -- @param taskid task ID to set
 -- @param val `curr` or `prev` for current or previous task id
-function TaskID:_settaskid(taskid, type)
+function TaskIDPrivate:_settaskid(taskid, type)
     local fname = self.taskpath .. "/." .. type
     local f = io.open(fname, "w")
     if not f then
-        print("error: could not open file", fname)
+        log("could not open file", fname)
         return
     end
     f:write(taskid, "\n")
     f:close()
 end
 
---- Unset current task ID.
-function TaskID:unsetcurr()
+--- Unset current task ID (private).
+function TaskIDPrivate:unsetcurr()
     local fname = self.taskpath .. "/.curr"
     local f = io.open(fname, "w")
     if not f then
@@ -69,8 +85,8 @@ function TaskID:unsetcurr()
     f:close()
 end
 
---- Unset previous task ID.
-function TaskID:unsetprev()
+--- Unset previous task ID (private).
+function TaskIDPrivate:unsetprev()
     local fname = self.taskpath .. "/.prev"
     local f = io.open(fname, "w")
     if not f then
@@ -79,42 +95,40 @@ function TaskID:unsetprev()
     f:close()
 end
 
---- Get current task ID.
+--- Get current task ID (private).
 -- @return current task ID.
-function TaskID:getcurr()
-    self.curr = self:_gettaskid("curr")
-    return self.curr
+function TaskIDPrivate:getcurr()
+    return self:_gettaskid("curr")
 end
 
---- Get previous task ID.
+--- Get previous task ID (private).
 -- @returtn previous task ID.
-function TaskID:getprev()
-    self.prev = self:_gettaskid("prev")
-    return self.prev
+function TaskIDPrivate:getprev()
+    return self:_gettaskid("prev")
 end
 
---- Set current task ID.
+--- Set current task ID (private).
 -- @param task ID
-function TaskID:setcurr(taskid)
+function TaskIDPrivate:setcurr(taskid)
     self:_settaskid(taskid, "curr")
     self.curr = taskid
 end
 
---- Set previous task ID.
+--- Set previous task ID (private).
 -- @param task ID
-function TaskID:setprev(taskid)
+function TaskIDPrivate:setprev(taskid)
     self:_settaskid(taskid, "prev")
     self.prev = taskid
 end
 
---- Check that task ID exist in database.
+--- Check that task ID exist in database (private).
 -- @param taskid task ID to look up
 -- @treturn bool true if task ID exist, otherwise false
-function TaskID:check(taskid)
+function TaskIDPrivate:check(taskid)
     local res = false
     local f = io.open(self.meta, "r")
     if not f then
-        print("error: could not open meta file")
+        log("could not open meta file")
         return
     end
     for line in f:lines() do
@@ -127,39 +141,58 @@ function TaskID:check(taskid)
     return res
 end
 
+
+--- Class TaskID
+-- type TaskID
+
+
+local taskid_pr = TaskIDPrivate.new()
+
+--- Init class TaskID.
+function TaskID.new()
+    local self = setmetatable({
+        curr = taskid_pr:getcurr(),
+        prev = taskid_pr:getprev(),
+    }, TaskID)
+    return self
+end
+
 --- Add a new task ID.
 -- @param taskid task ID to add to database
 -- @treturn bool true if task ID was adde, otherwise false
 function TaskID:add(taskid)
-    local curr = self:getcurr()
-    local f = io.open(self.meta, "a+")
-    if self:check(taskid) then
-        print(("warning: task '%s' already exists"):format(taskid))
+    local f = io.open(taskid_pr.meta, "a+")
+    if taskid_pr:check(taskid) then
+        log(("task '%s' already exists"):format(taskid))
         return false
     end
     if not f then
-        print("error: could not open meta file")
+        log("could not open meta file")
         return false
     end
     f:write(taskid, "\n")
     f:close()
-    self:setcurr(taskid)
-    if curr then
-        self:setprev(curr)
+
+    taskid_pr:setcurr(taskid)
+    self.curr = taskid_pr:getcurr()
+    if self.curr then
+        taskid_pr:setprev(self.curr)
     end
+    return true
 end
 
 --- Delete a task ID.
+-- @treturn bool true if adding new task ID was successful, otherwise false
 function TaskID:del(taskid)
-    local f = io.open(self.meta, "r")
+    local f = io.open(taskid_pr.meta, "r")
     local lines = {}
-    if not self:check(taskid) then
-        print(("warning: task '%s' doesn't exist"):format(taskid))
-        return
+    if not taskid_pr:check(taskid) then
+        log("task '%s' doesn't exist", taskid)
+        return false
     end
     if not f then
-        print("error: could not open meta file")
-        return
+        log("could not open meta file")
+        return false
     end
     for line in f:lines() do
         if line ~= taskid then
@@ -169,10 +202,10 @@ function TaskID:del(taskid)
     f:close()
 
     -- Update database file
-    f = io.open(self.meta, "w")
+    f = io.open(taskid_pr.meta, "w")
     if not f then
-        print("error: could not open meta file")
-        return
+        log("could not open meta file")
+        return false
     end
     for _, line in pairs(lines) do
         f:write(line, "\n")
@@ -180,26 +213,34 @@ function TaskID:del(taskid)
     f:close()
 
     -- remove current task ID from file
-    self:unsetcurr()
+    taskid_pr:unsetcurr()
+    self.curr = taskid_pr:getcurr()
+    return true
 end
 
 --- List all task IDs from the database.
 -- @param fn callback function
 function TaskID:list(fn)
-    local f = io.open(self.meta)
+    local f = io.open(taskid_pr.meta)
     if not f then
-        print("error: could not open meta file")
+        log("could not open meta file")
         return
     end
+    if self.curr then
+        print(("* %-8s %s"):format(self.curr, fn()))
+    end
     for id in f:lines() do
-        if self.curr == id then
-            local fmt = "* %-8s %s"
-            print(fmt:format(id, fn()))
-        else
-            local fmt = "  %-8s %s"
-            print(fmt:format(id, fn()))
+        if self.curr ~= id then
+            print(("  %-8s %s"):format(id, fn()))
         end
     end
+    f:close()
 end
+
+--[[
+local taskid = TaskID.new()
+taskid:del("DE-me4")
+taskid:list(function() return "" end)
+]]
 
 return TaskID

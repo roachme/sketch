@@ -10,6 +10,8 @@ local TaskUnit = {}
 TaskUnit.__index = TaskUnit
 
 
+
+
 local function log(fmt, ...)
     local msg = "taskunit: " .. fmt:format(...)
     print(msg)
@@ -45,10 +47,14 @@ end
 --- Class TaskUnit
 -- type TaskUnit
 
+function TaskUnit:formnote(id)
+    return self.taskpath .. "/" .. id .. "/.note"
+end
+
 --- Init class TaskUnit.
 function TaskUnit.newobj(gtaskpath)
     local self = setmetatable({
-        taskpath = gtaskpath,
+        taskpath = gtaskpath or "/home/roach/work/tasks",
     }, TaskUnit)
     return self
 end
@@ -108,7 +114,8 @@ end
 --- Get unit from task metadata.
 -- @param id task ID
 -- @param unit unit key we need value of
-function TaskUnit:getunit(id, unit)
+-- @treturn string unit value
+function TaskUnit:getunit(id, key)
     local res = nil
     local fname = self.taskpath .. "/" .. id .. "/.note"
     local f = io.open(fname)
@@ -117,7 +124,7 @@ function TaskUnit:getunit(id, unit)
         return nil
     end
     for line in f:lines() do
-        if string.match(line, "(%w+)"):lower() == unit then
+        if string.match(line, "(%w+)"):lower() == key then
             res = string.match(line, "%w+%s*:%s+(.*)")
         end
     end
@@ -126,9 +133,46 @@ end
 
 --- Update task status.
 -- @param id task ID
--- @param status what status to move a task to
-function TaskUnit:setstatus(id, status)
+-- @param key key
+-- @param val value
+-- @treturn bool true if could change task status, otherwise false
+function TaskUnit:setunit(id, key, val)
+    local lines = {}
+    local fname = self:formnote(id)
+    local f = io.open(fname, "r+")
+    if not f then
+        log("could not open file '%s'", fname)
+        return false
+    end
+    for line in f:lines() do
+        if string.match(line, key) then
+            line = key .. ": " .. val
+        end
+        table.insert(lines, line)
+    end
+    f:close()
+
+    f = io.open(fname, "w")
+    if not f then
+        log("could not open file '%s'", fname)
+        return false
+    end
+    for _, line in pairs(lines) do
+        f:write(line, "\n")
+    end
+    f:close()
+    return true
 end
+
+--[[
+local taskunit = TaskUnit.newobj()
+local key = "Status"
+local val = "backlog"
+taskunit:setunit("DE-me", key, val)
+]]
+
+
+
 
 --- Amend task unit.
 -- Like branch name, ID, etc.

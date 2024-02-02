@@ -5,6 +5,7 @@
 
 local taskid    = require("taskid")
 local taskunit  = require("taskunit")
+local git = require("git")
 
 local function log(fmt, ...)
     local msg = "tman: " .. fmt:format(...)
@@ -82,12 +83,70 @@ function TaskMan:use(id)
         print("tman: missing task ID")
         os.exit(1)
     end
+    if not self.taskid:exist(id) then
+        log("task ID '%s' does't exist", id)
+        os.exit(1)
+    end
+    self:move("progress", id)
     -- roachme: check this no current task,
     -- if so then check if we can move to backlog
     -- i.e. check it has no uncommited changes
 end
 
-function TaskMan:move()
+--- Move task to new status.
+-- FIXME: case: when new ID and current task ID are the same
+-- @param status status to move task to
+-- @param id task ID. Default: current task ID
+function TaskMan:move(status, id)
+    if not status then
+        log("missing status")
+        os.exit(1)
+    end
+    if id and id == self.taskid.curr then
+        log("task '%s' is already in use", id)
+        os.exit(1)
+
+    elseif (id and self.taskid.curr) and status == "progress" then
+        print("replace new task with current one (in progress)")
+        local gitobj = git.new(id, self.taskunit:getunit(id, "branch"))
+        if not gitobj:branch_switch() then
+            log("repo has uncommited changes")
+            os.exit(1)
+        end
+        self.taskunit:setunit(self.taskid.curr, "Status", "backlog")
+        self.taskunit:setunit(id, "Status", "progress")
+        self.taskid:setcurr(id)
+
+    elseif id and status == "progress" then
+        print("new task to progress")
+        local gitobj = git.new(id, self.taskunit:getunit(id, "branch"))
+        if not gitobj:branch_switch() then
+            log("repo has uncommited changes")
+            os.exit(1)
+        end
+        print("set new current task ID")
+        self.taskunit:setunit(id, "Status", status)
+        self.taskid:setcurr(id)
+
+    elseif id and status ~= "progress" then
+        print("new task to somewhere else:", id)
+        self.taskunit:setunit(id, "Status", status)
+
+    elseif self.taskid.curr and status ~= "progress" then
+        print("move current task to somewhere else")
+        local gitobj = git.new(self.taskid.curr, self.taskunit:getunit(self.taskid.curr, "branch"))
+        if not gitobj:branch_switch() then
+            log("repo has uncommited changes")
+            os.exit(1)
+        end
+        self.taskunit:setunit(self.taskid.curr, "Status", status)
+        self.taskid:unsetcurr()
+
+    else
+        log("no current task exists")
+        os.exit(1)
+    end
+    return true
 end
 
 --- Switch to previous task.
@@ -141,9 +200,9 @@ function TaskMan:main(arg)
     if arg[1] == "new" then
         self:new(arg[2])
     elseif arg[1] == "use" then
-        self:use()
+        self:use(arg[2])
     elseif arg[1] == "move" then
-        self:move()
+        self:move(arg[2], arg[3])
     elseif arg[1] == "list" then
         self:list()
     elseif arg[1] == "show" then

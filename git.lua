@@ -20,6 +20,8 @@ end
 
 
 --- Init Git class.
+-- @param taskid task ID
+-- @param branch branch name
 function Git.new(taskid, branch)
     local self = setmetatable({
         repos = {
@@ -43,19 +45,22 @@ function Git:uncommited(repo)
 end
 
 --- Switch to another git branch.
-function Git:branch_switch()
+-- @param branch branch to switch to. Default: task unit branch
+function Git:branch_switch(branch)
+    branch = branch or self.branch
     -- check no repo has uncommited changes
     for _, repo in pairs(self.repos) do
         if self:uncommited(repo) then
-            log("repo '%s' has uncommited changes")
+            log("repo '%s' has uncommited changes", repo)
             return false
         end
     end
     --- actually switch to specified branch
     for _, repo in pairs(self.repos) do
         local repopath = codebase .. "/" .. repo
-        os.execute("git -C " .. repopath .. " checkout --quiet " .. self.branch)
+        os.execute("git -C " .. repopath .. " checkout --quiet " .. branch)
     end
+    return true
 end
 
 function Git:branch_create()

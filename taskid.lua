@@ -218,6 +218,17 @@ function TaskID:del(taskid)
     return true
 end
 
+--- Set current task ID.
+-- @param taskid task ID
+function TaskID:setcurr(taskid)
+    return taskid_pr:setcurr(taskid)
+end
+
+--- Clear current task ID.
+function TaskID:unsetcurr()
+    return taskid_pr:unsetcurr()
+end
+
 --- List all task IDs from the database.
 -- @param fn callback function
 function TaskID:list(fn)
